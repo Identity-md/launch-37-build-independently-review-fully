@@ -1,0 +1,29 @@
+[profile.default]
+src = "src"
+out = "out"
+test = "test"
+libs = ["lib"]
+# Pinned: the launch floor tests declare `pragma solidity 0.8.26;` exactly.
+solc_version = "0.8.26"
+auto_detect_solc = false
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 1000
+via_ir = false
+# Required by the evm-project-launch policy: no metadata hash in the deployed bytecode.
+bytecode_hash = "none"
+# The verifier builds and tests offline with no filesystem or ffi access.
+ffi = false
+fs_permissions = []
+remappings = [
+    "forge-std/=lib/forge-std/src/",
+    "solady/=lib/solady/src/",
+]
+
+[fuzz]
+runs = 256
+
+[lint]
+# Narrowing casts in the marketplace are guarded by explicit range checks (MAX_PRICE, _MAX_ID);
+# the lint cannot see that and would otherwise clutter every build.
+lint_on_build = false
