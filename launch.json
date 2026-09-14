@@ -1,0 +1,30 @@
+{
+  "kind": "evm_project",
+  "token": {
+    "contract": "BazaarToken",
+    "name": "Bazaar",
+    "symbol": "BZR",
+    "decimals": 18
+  },
+  "contracts": [
+    {
+      "contract": "Royalties",
+      "constructorArgs": ["$owner"]
+    },
+    {
+      "contract": "BazaarMarketplace",
+      "constructorArgs": ["$owner", "$contract:Royalties"]
+    },
+    {
+      "contract": "RoyaltyRegistry",
+      "constructorArgs": ["$owner"]
+    }
+  ],
+  "pool": {
+    "pairedCurrency": "0x0000000000000000000000000000000000000000",
+    "fee": 3000,
+    "tickSpacing": 60,
+    "initialPrice": "79228162514264337593543950336"
+  },
+  "notes": "Bazaar: a custodial, push-settled marketplace for any ERC-721, delivered as a Sepolia evm_project launch built on vendored Solady (lib/, plain files, no submodules).\n\nTOKEN. BazaarToken (BZR): Solady ERC-20 with EIP-2612 permit. Zero-argument constructor mints exactly 1,000,000,000 BZR (10^27 minor units, 18 decimals) to msg.sender, the ProjectFactory. No mint, owner, pause, proxy or SELFDESTRUCT. FWA and its buy-and-burn are out of scope.\n\nAPPLICATION CONTRACTS, in dependency order.\n1. Royalties(owner_ = $owner). Royalty policy. royaltyInfo(collection, tokenId, salePrice) is delegated by STATICCALL to a swappable implementation address that only $owner can change via setImplementation (address(0) switches royalties off; a non-zero address must have code). The bound is hardcoded: any answer above 5% of the sale price (MAX_ROYALTY_BPS = 500) reverts with RoyaltyOutOfBounds, and a positive amount with no receiver reverts. Until an implementation is set it returns (address(0), 0): zero royalty, no recipient, no external call.\n2. BazaarMarketplace(feeRecipient_ = $owner, royalties_ = $contract:Royalties). Actions: list (marketplace takes custody of the NFT), cancelListing, buy, makeOffer (ETH escrowed as a bid for any token of one collection), cancelOffer, acceptOffer. A 0.5% protocol fee (PROTOCOL_FEE_BPS = 50) on every trade is pushed to $owner; royalty, fee and seller proceeds are pushed inside the same call, with no pull or claim path. Every listing and offer must mature for one block (MATURITY_BLOCKS = 1) before it can be filled. Every entry point is nonReentrant and follows checks-effects-interactions; each custody pull and delivery is verified with ownerOf, and each call touches exactly one listing or offer, so a reentering, reverting or lying collection can only fail its own trades. The marketplace re-checks the 5% royalty ceiling itself. Per-collection oracle state: exact floor listing price (Solady RedBlackTreeLib) plus rolling average sale prices over ~1 hour (12 x 5 min), ~1 day (24 x 1 h) and ~1 week (28 x 6 h) bucketed rings, updated on every sale, listing and cancellation and readable via floorPrice, averagePrice1h/1d/1w and priceOracle. Events cover every action, fee and royalty payment, oracle sale and floor update. The marketplace has no owner and no admin function; its only privileged party is the immutable feeRecipient.\n3. RoyaltyRegistry(owner_ = $owner). Optional reference IRoyaltyImplementation: an owner-only per-collection (receiver, bps) table capped at 500 bps. Royalties are OFF at launch. To enable them, $owner calls Royalties.setImplementation(<RoyaltyRegistry address>) and then RoyaltyRegistry.setCollectionRoyalty(collection, receiver, bps). Any other IRoyaltyImplementation may be substituted later the same way.\n\nPRIVILEGES. $owner is the protocol fee recipient, the Royalties owner and the RoyaltyRegistry owner. No constructor reads msg.sender, so the factory holds no role. Constructors are nonpayable and take only address arguments; no initialization call is needed and all three contracts are usable as soon as they exist.\n\nBUILD. solc 0.8.26, evm_version cancun, optimizer 1000 runs, via_ir off, bytecode_hash none. Runtimes: marketplace ~11.7 KB, Royalties ~1.8 KB, registry ~1.6 KB, token ~2.2 KB; none contains DELEGATECALL, CALLCODE or SELFDESTRUCT. 120 Foundry tests pass offline (actions, one-block maturity, fee and royalty math over 0-5%, oracle averages and floor, reentering, reverting and lying ERC-721s). REVIEW.md holds the independent review.\n\nOPERATIONS for $owner. It must accept plain ETH: a fee recipient that rejects ETH reverts every trade. A reverting or gas-hungry royalty implementation halts all sales until swapped. There is no pause, upgrade or rescue path. Pool parameters are policy defaults (native ETH pair, fee 3000, tick spacing 60, sqrtPriceX96 = 2^96), not a valuation claim."
+}
